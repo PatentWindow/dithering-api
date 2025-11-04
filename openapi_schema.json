@@ -1,0 +1,67 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "画像ディザリングAPI",
+    "description": "カラー画像をアップロードし、コントラストを調整してFloyd-Steinbergディザリングを適用した白黒二値TIFF画像を返します。",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://YOUR_DEPLOYED_URL_HERE.up.railway.app",
+      "description": "Railwayデプロイサーバー (デプロイ後に書き換える)"
+    }
+  ],
+  "paths": {
+    "/process-dithering/": {
+      "post": {
+        "summary": "ディザリング処理の実行",
+        "description": "画像ファイルとコントラスト係数を送信し、処理済みのTIFF画像をダウンロードします。",
+        "operationId": "process_dithering_process_dithering__post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "処理する画像ファイル (JPG, PNGなど)"
+                  },
+                  "contrast_factor": {
+                    "type": "number",
+                    "default": 1.0,
+                    "description": "コントラスト係数 (1.0が標準)"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "処理成功。TIFFファイルが返されます。",
+            "content": {
+              "image/tiff": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "アップロードされたファイルが画像ではありません。"
+          },
+          "500": {
+            "description": "サーバー内部エラー（画像処理失敗など）"
+          }
+        }
+      }
+    }
+  }
+}
