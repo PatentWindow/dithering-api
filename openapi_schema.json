@@ -1,21 +1,20 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "画像ディザリングAPI",
-    "description": "カラー画像をアップロードし、コントラストを調整してFloyd-Steinbergディザリングを適用した白黒二値TIFF画像を返します。",
-    "version": "1.0.0"
+    "title": "画像ディザリングAPI (JSON版)",
+    "description": "カラー画像をアップロードし、コントラストを調整してBase64エンコードされたTIFF画像を含むJSONを返します。",
+    "version": "1.1.0"
   },
   "servers": [
     {
-      "url": "https://YOUR_DEPLOYED_URL_HERE.up.railway.app",
-      "description": "Railwayデプロイサーバー (デプロイ後に書き換える)"
+      "url": "https://dithering-api.onrender.com",
+      "description": "Render.com デプロイサーバー (★ご自身のURLに書き換えてください★)"
     }
   ],
   "paths": {
     "/process-dithering/": {
       "post": {
-        "summary": "ディザリング処理の実行",
-        "description": "画像ファイルとコントラスト係数を送信し、処理済みのTIFF画像をダウンロードします。",
+        "summary": "ディザリング処理の実行 (JSON返却)",
         "operationId": "process_dithering_process_dithering__post",
         "requestBody": {
           "required": true,
@@ -44,21 +43,30 @@
         },
         "responses": {
           "200": {
-            "description": "処理成功。TIFFファイルが返されます。",
+            "description": "処理成功。Base64エンコードされたファイルを含むJSONが返されます。",
             "content": {
-              "image/tiff": {
+              "application/json": {
                 "schema": {
-                  "type": "string",
-                  "format": "binary"
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "filename": {
+                      "type": "string"
+                    },
+                    "file_base64": {
+                      "type": "string",
+                      "format": "byte",
+                      "description": "Base64エンコードされたTIFFファイル"
+                    },
+                    "mime_type": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             }
-          },
-          "400": {
-            "description": "アップロードされたファイルが画像ではありません。"
-          },
-          "500": {
-            "description": "サーバー内部エラー（画像処理失敗など）"
           }
         }
       }
