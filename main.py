@@ -1,10 +1,20 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-from fastapi.responses import JSONResponse  # ★ 修正点 1: Response を JSONResponse に変更
+from fastapi.responses import JSONResponse, FileResponse
+from starlette.staticfiles import StaticFiles  # ★ 1. 静的ファイル（ダウンロード）のために追加
 import io
-import base64  # ★ 修正点 2: base64をインポート
+import os      # ★ 2. サーバーのURLやファイルパスのために追加
+import uuid    # ★ 3. ランダムなファイル名のために追加
 from PIL import Image, ImageEnhance
 
 app = FastAPI()
+
+# ★ 4. 一時ファイルを保存するディレクトリを定義
+# Render.com の無料枠で書き込み可能な一時ディレクトリ
+TEMP_DIR = "/tmp/dithered_files"
+
+# ★ 5. /static パスを作成し、TEMP_DIR を公開
+# これにより https://.../static/filename.tiff でアクセス可能になる
+app.mount("/static", StaticFiles(directory=TEMP_DIR), name="static")
 
 @app.post("/process-dithering/")
 async def process_dithering(
@@ -12,6 +22,13 @@ async def process_dithering(
     contrast_factor: float = Form(1.0)
 ):
     try:
+        # ★ 6. Render.comが自動で設定する「サーバーの住所」を取得
+        base_url = os.environ.get("RENDER_EXTERNAL_URL")
+        if not base_url:
+            # もし環境変数が見つからなければ、エラーを返す
+            print("エラー: 環境変数 RENDER_EXTERNAL_URL が設定されていません。")
+            raise HTTPException(status_code=500, detail="サーバー設定エラー: RENDER_EXTERNAL_URL が見つかりません。")
+
         if not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="アップロードされたファイルが画像ではありません。")
         
@@ -35,24 +52,30 @@ async def process_dithering(
             '1', 
             dither=Image.Dither.FLOYDSTEINBERG
         )
-
-        tiff_buffer = io.BytesIO()
-        img_dithered.save(tiff_buffer, format="tiff")
-        tiff_bytes = tiff_buffer.getvalue()
         
-        print("TIFF形式でメモリに保存し、Base64にエンコードします。")
+        # ★ 7. TIFFをファイルとして一時保存
         
-        # ★ 修正点 3: TIFFデータをBase64のテキスト文字列に変換
-        file_base64 = base64.b64encode(tiff_bytes).decode('utf-8')
-        output_filename = "dithered_output.tiff" # （このファイル名はJSON内で使われるだけです）
+        # ディレクトリが存在するか確認し、なければ作成
+        os.makedirs(TEMP_DIR, exist_ok=True)
+        
+        # ランダムなファイル名を生成
+        unique_filename = f"{uuid.uuid4()}.tiff"
+        file_path = os.path.join(TEMP_DIR, unique_filename)
+        
+        # ファイルをディスクに保存
+        img_dithered.save(file_path, format="tiff")
+        print(f"TIFFファイルを一時保存しました: {file_path}")
 
-        # ★ 修正点 4: 生のファイルではなく、JSONを返す
+        # ★ 8. Base64の代わりに、ダウンロードURLを生成
+        download_url = f"{base_url}/static/{unique_filename}"
+        
+        # ★ 9. JSONでダウンロードURLを返す
         return JSONResponse(
             status_code=200,
             content={
-                "message": "処理に成功しました。",
-                "filename": output_filename,
-                "file_base64": file_base64,
+                "message": "処理に成功しました。ダウンロードURLを返します。",
+                "filename": f"dithered_{file.filename}.tiff",
+                "download_url": download_url,
                 "mime_type": "image/tiff"
             }
         )
@@ -67,4 +90,4 @@ async def process_dithering(
 
 @app.get("/")
 def read_root():
-    return {"message": "画像ディザリングAPI (Base64 JSON対応版) へようこそ！ /docs にアクセスしてUIを試してください。"}
+    return {"message": "画像ディザリングAPI (ダウンロードURL対応版) へようこそ！ /docs にアクセスしてUIを試してください。"}

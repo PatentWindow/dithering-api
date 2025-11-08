@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "画像ディザリングAPI (JSON版)",
-    "description": "カラー画像をアップロードし、コントラストを調整してBase64エンコードされたTIFF画像を含むJSONを返します。",
-    "version": "1.1.0"
+    "title": "画像ディザリングAPI (ダウンロードURL版)",
+    "description": "カラー画像をアップロードし、コントラストを調整して、処理済みTIFFファイルへの一時ダウンロードURLを含むJSONを返します。",
+    "version": "1.2.0"
   },
   "servers": [
     {
@@ -14,7 +14,7 @@
   "paths": {
     "/process-dithering/": {
       "post": {
-        "summary": "ディザリング処理の実行 (JSON返却)",
+        "summary": "ディザリング処理の実行 (ダウンロードURL返却)",
         "operationId": "process_dithering_process_dithering__post",
         "requestBody": {
           "required": true,
@@ -43,7 +43,7 @@
         },
         "responses": {
           "200": {
-            "description": "処理成功。Base64エンコードされたファイルを含むJSONが返されます。",
+            "description": "処理成功。一時ダウンロードURLを含むJSONが返されます。",
             "content": {
               "application/json": {
                 "schema": {
@@ -55,10 +55,10 @@
                     "filename": {
                       "type": "string"
                     },
-                    "file_base64": {
+                    "download_url": {
                       "type": "string",
-                      "format": "byte",
-                      "description": "Base64エンコードされたTIFFファイル"
+                      "format": "uri",
+                      "description": "TIFFファイルへの一時ダウンロードURL"
                     },
                     "mime_type": {
                       "type": "string"
