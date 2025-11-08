@@ -1,20 +1,25 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
-from starlette.staticfiles import StaticFiles  # ★ 1. 静的ファイル（ダウンロード）のために追加
+from starlette.staticfiles import StaticFiles
 import io
-import os      # ★ 2. サーバーのURLやファイルパスのために追加
-import uuid    # ★ 3. ランダムなファイル名のために追加
+import os
+import uuid
 from PIL import Image, ImageEnhance
 
 app = FastAPI()
 
-# ★ 4. 一時ファイルを保存するディレクトリを定義
-# Render.com の無料枠で書き込み可能な一時ディレクトリ
+# ★ 修正点: APIが起動する瞬間に、フォルダを"先"に作成する
+
+# 1. 一時ファイルを保存するディレクトリを定義
 TEMP_DIR = "/tmp/dithered_files"
 
-# ★ 5. /static パスを作成し、TEMP_DIR を公開
-# これにより https://.../static/filename.tiff でアクセス可能になる
+# 2. ディレクトリが存在するか確認し、なければ作成
+os.makedirs(TEMP_DIR, exist_ok=True)
+
+# 3. /static パスを作成し、TEMP_DIR を公開
+# (フォルダを"先"に作ったので、今度はエラーになりません)
 app.mount("/static", StaticFiles(directory=TEMP_DIR), name="static")
+
 
 @app.post("/process-dithering/")
 async def process_dithering(
@@ -22,10 +27,8 @@ async def process_dithering(
     contrast_factor: float = Form(1.0)
 ):
     try:
-        # ★ 6. Render.comが自動で設定する「サーバーの住所」を取得
         base_url = os.environ.get("RENDER_EXTERNAL_URL")
         if not base_url:
-            # もし環境変数が見つからなければ、エラーを返す
             print("エラー: 環境変数 RENDER_EXTERNAL_URL が設定されていません。")
             raise HTTPException(status_code=500, detail="サーバー設定エラー: RENDER_EXTERNAL_URL が見つかりません。")
 
@@ -53,10 +56,7 @@ async def process_dithering(
             dither=Image.Dither.FLOYDSTEINBERG
         )
         
-        # ★ 7. TIFFをファイルとして一時保存
-        
-        # ディレクトリが存在するか確認し、なければ作成
-        os.makedirs(TEMP_DIR, exist_ok=True)
+        # （os.makedirsは既に起動時に実行されているので、ここでは不要）
         
         # ランダムなファイル名を生成
         unique_filename = f"{uuid.uuid4()}.tiff"
@@ -66,10 +66,10 @@ async def process_dithering(
         img_dithered.save(file_path, format="tiff")
         print(f"TIFFファイルを一時保存しました: {file_path}")
 
-        # ★ 8. Base64の代わりに、ダウンロードURLを生成
+        # ダウンロードURLを生成
         download_url = f"{base_url}/static/{unique_filename}"
         
-        # ★ 9. JSONでダウンロードURLを返す
+        # JSONでダウンロードURLを返す
         return JSONResponse(
             status_code=200,
             content={
